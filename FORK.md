@@ -57,3 +57,5 @@ codex resume <new-session-id>
 
 This is a version-sensitive integration with private client storage. Synthetic
 tests verify conversion rules, not cold resume in every client release.
+See [COMPATIBILITY.md](COMPATIBILITY.md) for exact client versions, verification
+levels and the repeatable isolated native probe.
