@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "currentForkVersion": "1.4.2",
+  "verifications": [
+    {
+      "forkVersion": "1.4.1",
+      "claudeVersion": "2.1.312",
+      "codexVersion": "0.163.0",
+      "platform": "win32-x64",
+      "nodeVersion": "v24.19.0",
+      "checkedAt": "2026-10-29",
+      "sourceSha256": "1f9416da3bc468c4dd3d71fec23b171ca2811e9082ea109e268c62db0b64dc78",
+      "checks": {
+        "claudePluginInstall": true,
+        "codexMigration": true,
+        "codexList": true,
+        "codexRead": true,
+        "codexTitle": true,
+        "modelResponse": false,
+        "claudeConversationResume": false
+      }
+    },
+    {
+      "forkVersion": "1.4.1",
+      "claudeVersion": "2.1.312",
+      "codexVersion": "0.165.0",
+      "platform": "win32-x64",
+      "nodeVersion": "v24.19.0",
+      "checkedAt": "2026-10-29",
+      "sourceSha256": "1f9416da3bc468c4dd3d71fec23b171ca2811e9082ea109e268c62db0b64dc78",
+      "checks": {
+        "claudePluginInstall": true,
+        "codexMigration": true,
+        "codexList": true,
+        "codexRead": true,
+        "codexTitle": true,
+        "modelResponse": false,
+        "claudeConversationResume": false
+      }
+    },
+    {
+      "forkVersion": "1.4.2",
+      "claudeVersion": "2.1.312",
+      "codexVersion": "0.163.0",
+      "platform": "win32-x64",
+      "nodeVersion": "v24.19.0",
+      "checkedAt": "2026-10-29T13:42:57.925Z",
+      "sourceSha256": "a66477bb6fdb3eab6898aa358b9ead3d14cd1ed48e6533b774ee2de24851258a",
+      "checks": {
+        "claudePluginInstall": true,
+        "codexMigration": true,
+        "codexList": true,
+        "codexRead": true,
+        "codexTitle": true,
+        "longTextAndToolOutput": true,
+        "modelResponse": false,
+        "claudeConversationResume": false
+      }
+    },
+    {
+      "forkVersion": "1.4.2",
+      "claudeVersion": "2.1.312",
+      "codexVersion": "0.165.0",
+      "platform": "win32-x64",
+      "nodeVersion": "v24.19.0",
+      "checkedAt": "2026-10-29T13:43:13.109Z",
+      "sourceSha256": "a66477bb6fdb3eab6898aa358b9ead3d14cd1ed48e6533b774ee2de24851258a",
+      "checks": {
+        "claudePluginInstall": true,
+        "codexMigration": true,
+        "codexList": true,
+        "codexRead": true,
+        "codexTitle": true,
+        "longTextAndToolOutput": true,
+        "modelResponse": false,
+        "claudeConversationResume": false
+      }
+    }
+  ]
+}

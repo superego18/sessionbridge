@@ -13,6 +13,19 @@ import {
   listRecentClaudeSessions,
 } from "./claude-reader.js";
 import { writeCodexSession } from "./codex-writer.js";
+import path from "path";
+import os from "os";
+import { archiveSource } from "./source-archive.js";
+import fs from "fs";
+import type { ParsedSession } from "./types.js";
+
+function saveProjection(directory: string, session: ParsedSession): string {
+  const content = buildContextSummary(session);
+  const filePath = path.join(directory, "context.md");
+  fs.writeFileSync(filePath, content, { mode: 0o600 });
+  console.log(`Full projected history: ${filePath}. If tool output is truncated, read this file in chunks.`);
+  return content;
+}
 
 const args = process.argv.slice(2);
 
@@ -76,13 +89,18 @@ async function handleCodex2Claude(restArgs: string[]) {
     process.exit(1);
   }
 
-  const parsed = await parseCodexSession(session.rolloutPath);
+  const claudeHome = process.env.CLAUDE_CONFIG_DIR || process.env.CLAUDE_HOME || path.join(os.homedir(), ".claude");
+  const archive = archiveSource(session.rolloutPath, "codex", claudeHome);
+  const parsed = await parseCodexSession(archive.sourcePath);
+  console.log(`Source archive (exact JSONL, SHA-256 ${archive.sha256}): ${archive.directory}`);
+  console.log("Converted history does not restore source permissions, encrypted reasoning, external files or other sessions.");
 
   if (parsed.turns.length === 0) {
     console.error("Error: No conversation turns found in this session.");
     process.exit(1);
   }
 
+  const summary = saveProjection(archive.directory, parsed);
   if (newSessionMode) {
     const result = writeClaudeSession(parsed);
     console.log("=== New Claude Session Created ===");
@@ -95,7 +113,6 @@ async function handleCodex2Claude(restArgs: string[]) {
     console.log(`  cd ${parsed.cwd}`);
     console.log(`  claude -r ${result.sessionId}`);
   } else {
-    const summary = buildContextSummary(parsed);
     console.log(summary);
   }
 }
@@ -120,16 +137,20 @@ async function handleClaude2Codex(restArgs: string[]) {
     process.exit(1);
   }
 
-  const parsed = await parseClaudeSession(found.filePath);
+  const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+  const archive = archiveSource(found.filePath, "claude", codexHome);
+  const parsed = await parseClaudeSession(archive.sourcePath);
+  console.log(`Source archive (exact JSONL, SHA-256 ${archive.sha256}): ${archive.directory}`);
+  console.log("Converted history does not restore source permissions, encrypted reasoning, external files or other sessions.");
 
   if (parsed.turns.length === 0) {
     console.error("Error: No conversation turns found in this session.");
     process.exit(1);
   }
 
+  const summary = saveProjection(archive.directory, parsed);
   if (injectMode) {
     // 注入模式：输出 Markdown 摘要
-    const summary = buildContextSummary(parsed);
     console.log(summary);
   } else {
     // 默认：生成新的 Codex 会话

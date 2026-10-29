@@ -92,21 +92,7 @@ export async function parseClaudeSession(
 
       const content = msg.content;
 
-      // 判断是纯文本 user 还是 tool_result
-      if (typeof content === "string") {
-        // 新 turn：纯文本用户消息
-        if (currentTurn) {
-          session.turns.push(currentTurn);
-        }
-        currentTurn = {
-          index: turnIndex++,
-          userMessage: content,
-          timestamp: (rec.timestamp as string) || "",
-          assistantMessages: [],
-          toolCalls: [],
-          reasoningCount: 0,
-        };
-      } else if (Array.isArray(content)) {
+      if (Array.isArray(content)) {
         // tool_result 记录
         for (const block of content) {
           if (
@@ -118,11 +104,29 @@ export async function parseClaudeSession(
             const toolUseId = b.tool_use_id as string;
             if (toolUseId && toolCallMap.has(toolUseId) && currentTurn) {
               const tc = toolCallMap.get(toolUseId)!;
-              tc.output = (b.content as string) || "";
+              tc.output = typeof b.content === "string" ? b.content : JSON.stringify(b.content ?? "");
+              currentTurn.events?.push({ type: "tool_result", callIndex: currentTurn.toolCalls.indexOf(tc) });
               // 不重复 push，已经在 function_call 时 push 过了
             }
           }
         }
+      }
+      const userText = typeof content === "string" ? content : Array.isArray(content)
+        ? content.filter(b => b && b.type === "text").map(b => b.text || "").join("\n") : "";
+      if (typeof content === "string" || userText) {
+        // 新 turn：纯文本用户消息
+        if (currentTurn) {
+          session.turns.push(currentTurn);
+        }
+        currentTurn = {
+          index: turnIndex++,
+          userMessage: userText,
+          timestamp: (rec.timestamp as string) || "",
+          assistantMessages: [],
+          toolCalls: [],
+          reasoningCount: 0,
+          events: [],
+        };
       }
     } else if (type === "assistant") {
       if (!currentTurn) continue;
@@ -146,12 +150,18 @@ export async function parseClaudeSession(
           case "text": {
             if (b.text && currentTurn) {
               currentTurn.assistantMessages.push(b.text as string);
+              currentTurn.events?.push({ type: "assistant", text: b.text as string });
             }
             break;
           }
           case "thinking": {
             if (currentTurn) {
               currentTurn.reasoningCount++;
+              if (typeof b.thinking === "string") {
+                const note = "[Source reasoning retained as historical text]\n" + b.thinking;
+                currentTurn.assistantMessages.push(note);
+                currentTurn.events?.push({ type: "assistant", text: note });
+              }
             }
             break;
           }
@@ -166,6 +176,7 @@ export async function parseClaudeSession(
               toolCallMap.set(b.id as string, tc);
             }
             currentTurn.toolCalls.push(tc);
+            currentTurn.events?.push({ type: "tool_call", callIndex: currentTurn.toolCalls.length - 1 });
             break;
           }
         }
@@ -228,7 +239,7 @@ export function findClaudeSessionById(
   sessionId: string
 ): { filePath: string; cwd: string } | null {
   const projectsDir = path.join(
-    process.env.CLAUDE_HOME || path.join(os.homedir(), ".claude"),
+    process.env.CLAUDE_CONFIG_DIR || process.env.CLAUDE_HOME || path.join(os.homedir(), ".claude"),
     "projects"
   );
 
@@ -261,7 +272,7 @@ export function listRecentClaudeSessions(
   gitBranch?: string;
 }> {
   const projectsDir = path.join(
-    process.env.CLAUDE_HOME || path.join(os.homedir(), ".claude"),
+    process.env.CLAUDE_CONFIG_DIR || process.env.CLAUDE_HOME || path.join(os.homedir(), ".claude"),
     "projects"
   );
   if (!fs.existsSync(projectsDir)) return [];

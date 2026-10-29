@@ -9,6 +9,7 @@ import crypto from "crypto";
 import Database from "better-sqlite3";
 import type { ParsedSession, ParsedTurn, ParsedToolCall } from "./types.js";
 import { TOOL_NAME_MAP_REVERSE } from "./types.js";
+import { historyEvents } from "./history.js";
 
 // The source session's model is a Claude model name. Writing it into a Codex
 // thread makes the turn fail outright:
@@ -78,7 +79,8 @@ export function writeCodexSession(
   const filePath = path.join(dateDir, fileName);
 
   // 写入 JSONL
-  const ws = fs.createWriteStream(filePath, "utf-8");
+  const lines: string[] = [];
+  const ws = { write: (line: string) => { lines.push(line); } };
 
   // 1. session_meta
   const sessionMeta = {
@@ -110,7 +112,7 @@ export function writeCodexSession(
     writeTurn(ws, turn, session, codexSessionId);
   }
 
-  ws.end();
+  fs.writeFileSync(filePath, lines.join(""), { mode: 0o600 });
 
   // 3. 注册到 SQLite
   registerInSQLite(codexHome, codexSessionId, filePath, session);
@@ -141,7 +143,7 @@ export function writeCodexSession(
 }
 
 function writeTurn(
-  ws: fs.WriteStream,
+  ws: { write(line: string): unknown },
   turn: ParsedTurn,
   session: ParsedSession,
   _codexSessionId: string
@@ -200,97 +202,38 @@ function writeTurn(
     }) + "\n"
   );
 
-  // reasoning (如果有)
-  if (turn.reasoningCount > 0) {
-    ws.write(
-      JSON.stringify({
-        timestamp: ts,
-        type: "response_item",
-        payload: {
-          type: "reasoning",
-          encrypted_content: `[${turn.reasoningCount} reasoning steps imported from Claude Code]`,
-        },
-      }) + "\n"
-    );
-  }
-
-  // assistant messages
-  for (const msg of turn.assistantMessages) {
-    ws.write(
-      JSON.stringify({
-        timestamp: ts,
-        type: "event_msg",
-        payload: { type: "agent_message", message: msg },
-      }) + "\n"
-    );
-
-    ws.write(
-      JSON.stringify({
-        timestamp: ts,
-        type: "response_item",
-        payload: {
-          type: "message",
-          role: "assistant",
-          content: [{ type: "output_text", text: msg }],
-        },
-      }) + "\n"
-    );
-  }
-
-  // tool calls + results
-  for (const tc of turn.toolCalls) {
-    const codexToolName = TOOL_NAME_MAP_REVERSE[tc.toolName] || tc.toolName;
-
-    // 转换参数格式
+  // Keep message/tool/result chronology, including parallel tool-call IDs.
+  const ids = turn.toolCalls.map(() => `call_${crypto.randomBytes(12).toString("hex")}`);
+  const visibleHistory = (message: string) => ws.write(JSON.stringify({ timestamp: ts,
+    type: "event_msg", payload: { type: "agent_message", message } }) + "\n");
+  for (const event of historyEvents(turn)) {
+    if (event.type === "assistant") {
+      visibleHistory(event.text);
+      ws.write(JSON.stringify({ timestamp: ts, type: "response_item", payload: {
+        type: "message", role: "assistant", content: [{ type: "output_text", text: event.text }],
+      } }) + "\n");
+      continue;
+    }
+    const call = turn.toolCalls[event.callIndex];
+    if (event.type === "tool_result") {
+      if (call.output !== undefined) visibleHistory(`[Source tool result: ${call.toolName}]\n${call.output}`);
+      if (call.output !== undefined) ws.write(JSON.stringify({ timestamp: ts, type: "response_item", payload: {
+        type: "function_call_output", call_id: ids[event.callIndex], output: call.output,
+      } }) + "\n");
+      continue;
+    }
+    const name = TOOL_NAME_MAP_REVERSE[call.toolName] || call.toolName;
+    visibleHistory(`[Source tool call: ${call.toolName}]\n${call.arguments}`);
     let args: Record<string, unknown>;
-    try {
-      args = JSON.parse(tc.arguments);
-    } catch {
-      args = { raw: tc.arguments };
+    try { args = JSON.parse(call.arguments); } catch { args = { raw: call.arguments }; }
+    if (name === "exec_command") {
+      const cmd = args.command || args.cmd || args.raw || "";
+      args = { ...args, cmd: typeof cmd === "string" ? cmd : JSON.stringify(cmd),
+        workdir: args.workdir || session.cwd };
     }
-
-    // 反向转换参数
-    if (codexToolName === "exec_command") {
-      // Claude Bash → Codex exec_command
-      const cmd = args.command || args.raw || "";
-      args = {
-        cmd: typeof cmd === "string" ? cmd : JSON.stringify(cmd),
-        workdir: session.cwd,
-        yield_time_ms: 1000,
-        max_output_tokens: 10000,
-      };
-    }
-
-    const callId = `call_${crypto.randomBytes(12).toString("hex")}`;
-
-    // function_call
-    ws.write(
-      JSON.stringify({
-        timestamp: ts,
-        type: "response_item",
-        payload: {
-          type: "function_call",
-          name: codexToolName,
-          arguments: JSON.stringify(args),
-          call_id: callId,
-        },
-      }) + "\n"
-    );
-
-    // function_call_output
-    if (tc.output !== undefined) {
-      ws.write(
-        JSON.stringify({
-          timestamp: ts,
-          type: "response_item",
-          payload: {
-            type: "function_call_output",
-            call_id: callId,
-            output: tc.output,
-          },
-        }) + "\n"
-      );
-    }
+    ws.write(JSON.stringify({ timestamp: ts, type: "response_item", payload: {
+      type: "function_call", name, arguments: JSON.stringify(args), call_id: ids[event.callIndex],
+    } }) + "\n");
   }
 
   // task_complete

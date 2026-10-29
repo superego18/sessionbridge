@@ -96,6 +96,7 @@ export async function parseCodexSession(
             assistantMessages: [],
             toolCalls: [],
             reasoningCount: 0,
+            events: [],
           };
           session.endTime = em.timestamp;
         } else if (pType === "agent_message" || pType === "task_complete" || pType === "task_completed") {
@@ -134,6 +135,7 @@ export async function parseCodexSession(
               assistantMessages: [],
               toolCalls: [],
               reasoningCount: 0,
+              events: [],
             };
             session.endTime = ri.timestamp;
           }
@@ -152,6 +154,7 @@ export async function parseCodexSession(
                 .join("\n");
               if (text) {
                 currentTurn.assistantMessages.push(text);
+                currentTurn.events?.push({ type: "assistant", text });
               }
             }
             break;
@@ -163,10 +166,10 @@ export async function parseCodexSession(
               arguments: ri.payload.arguments || "{}",
               timestamp: ri.timestamp,
             };
+            currentTurn.toolCalls.push(tc);
+            currentTurn.events?.push({ type: "tool_call", callIndex: currentTurn.toolCalls.length - 1 });
             if (ri.payload.call_id) {
               pendingToolCallMap.set(ri.payload.call_id, tc);
-            } else {
-              currentTurn.toolCalls.push(tc);
             }
             break;
           }
@@ -174,8 +177,8 @@ export async function parseCodexSession(
           case "function_call_output": {
             if (ri.payload.call_id && pendingToolCallMap.has(ri.payload.call_id)) {
               const tc = pendingToolCallMap.get(ri.payload.call_id)!;
-              tc.output = ri.payload.output || "";
-              currentTurn.toolCalls.push(tc);
+              tc.output = typeof ri.payload.output === "string" ? ri.payload.output : JSON.stringify(ri.payload.output ?? "");
+              currentTurn.events?.push({ type: "tool_result", callIndex: currentTurn.toolCalls.indexOf(tc) });
               pendingToolCallMap.delete(ri.payload.call_id);
             }
             break;
@@ -187,10 +190,10 @@ export async function parseCodexSession(
               arguments: ri.payload.input || "",
               timestamp: ri.timestamp,
             };
+            currentTurn.toolCalls.push(tc);
+            currentTurn.events?.push({ type: "tool_call", callIndex: currentTurn.toolCalls.length - 1 });
             if (ri.payload.call_id) {
               pendingToolCallMap.set(ri.payload.call_id, tc);
-            } else {
-              currentTurn.toolCalls.push(tc);
             }
             break;
           }
@@ -198,8 +201,8 @@ export async function parseCodexSession(
           case "custom_tool_call_output": {
             if (ri.payload.call_id && pendingToolCallMap.has(ri.payload.call_id)) {
               const tc = pendingToolCallMap.get(ri.payload.call_id)!;
-              tc.output = ri.payload.output || "";
-              currentTurn.toolCalls.push(tc);
+              tc.output = typeof ri.payload.output === "string" ? ri.payload.output : JSON.stringify(ri.payload.output ?? "");
+              currentTurn.events?.push({ type: "tool_result", callIndex: currentTurn.toolCalls.indexOf(tc) });
               pendingToolCallMap.delete(ri.payload.call_id);
             }
             break;
@@ -207,6 +210,13 @@ export async function parseCodexSession(
 
           case "reasoning": {
             currentTurn.reasoningCount++;
+            for (const block of ri.payload.summary || []) {
+              if (block.text) {
+                const text = "[Source reasoning summary retained as historical text]\n" + block.text;
+                currentTurn.assistantMessages.push(text);
+                currentTurn.events?.push({ type: "assistant", text });
+              }
+            }
             break;
           }
         }
@@ -231,10 +241,7 @@ function flushTurn(
   session: ParsedSession,
   pendingToolCallMap: Map<string, ParsedToolCall>
 ) {
-  // 把残留的未配对工具调用也加入
-  for (const tc of pendingToolCallMap.values()) {
-    turn.toolCalls.push(tc);
-  }
+  // Calls are retained at their original position, even without a result.
   pendingToolCallMap.clear();
   session.turns.push(turn);
 }

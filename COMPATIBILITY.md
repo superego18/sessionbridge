@@ -1,56 +1,60 @@
-# Client compatibility
+# Verified version combinations
 
-**Record exact versions and the evidence level. A newer version is unverified,
-not automatically supported.** These results describe fork 1.4.1 as checked on
-2026-10-29. They are not a minimum/maximum supported-version range.
+**Track the fork, Claude Code and Codex versions together.** The machine-readable
+source is [compatibility.json](compatibility.json). Each entry also records the
+platform, date, Node version, exact checks and a fingerprint of the tested source.
+A newer client is unverified; these are exact combinations, not a support range.
 
-| Client/runtime | Exact version | Platform | Verified | Not verified |
-| --- | --- | --- | --- | --- |
-| Claude Code | 2.1.312 | Windows x64 | Local marketplace install, in-place source registration, disabling the old plugin, repeat installation, manifest validation | Cold resume of a converted Claude conversation; first model response |
-| Codex CLI | 0.163.0 | Windows x64 | Synthetic export, native migration, thread list, native history read, title | Interactive cold resume; first model response |
-| Codex application-bundled binary | 0.165.0 | Windows x64 | Same isolated native probe: export, migration, thread list, history read, title | Interactive cold resume; first model response |
-| Node.js | 24.19.0 | Windows x64 | Regression tests, native SQLite dependency, TypeScript build | Other Node major versions |
-| Node.js | 24.x | GitHub Windows/macOS runners | Clean dependency install, seven regression tests, TypeScript build | Claude/Codex native client behavior on macOS |
+<!-- version-combinations:start -->
+| Fork | Claude Code | Codex | Platform | Checked | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| 1.4.1 | 2.1.312 | 0.163.0 | win32-x64 | 2026-10-29 | historical |
+| 1.4.1 | 2.1.312 | 0.165.0 | win32-x64 | 2026-10-29 | historical |
+| 1.4.2 | 2.1.312 | 0.163.0 | win32-x64 | 2026-10-29 | verified |
+| 1.4.2 | 2.1.312 | 0.165.0 | win32-x64 | 2026-10-29 | verified |
+<!-- version-combinations:end -->
 
-The application-bundled Codex server and the shell's Codex CLI may have
-different versions. Probe the actual binary that will read the imported history.
+## What these checks establish
 
-## Repeatable Codex check
+- Claude Code: isolated local marketplace installation, manifest validation and
+  the installed fork version. **Converted conversation cold resume is unverified.**
+- Codex: synthetic export, native migration, thread list, native history read and
+  title retention. Version 1.4.2 probes also check long text and tool output.
+- **No model request is sent. A first model response and source permissions,
+  encrypted reasoning, images, external files and separate sessions are not
+  claimed to be portable.** Source JSONL archives preserve their original bytes.
+- Windows/macOS CI checks dependency installation, conversion fixtures and build.
+  It does not prove native client compatibility on macOS.
+
+## Verify and record a combination
 
 ```bash
 npm ci
 npm test
 npm run build
-npm run test:native -- /absolute/path/to/codex
+npm run test:native -- /path/to/codex /path/to/claude --record
+npm run check:compatibility
 ```
 
-The native probe creates a temporary CODEX_HOME, writes synthetic messages,
-uses the installed client's migration and app-server APIs, stops its isolated
-daemon, then removes only its own temporary files. If Windows retains a file
-lock, it prints the retained synthetic profile path for later cleanup.
-It does not read existing conversations, copy login
-credentials, trust a regular project profile, or send a model request.
+The probe creates isolated Codex and Claude homes and uses synthetic records only.
+It records a tuple only after all native checks pass, then regenerates the table
+above. `check:compatibility` rejects mismatched package/plugin/marketplace versions
+and source changes without a matching verified tuple. It does not block ordinary
+migration commands at runtime. Verify every client version you intend to claim;
+the shell CLI and application-bundled binary may differ.
 
-## Release checklist
+The probe stops its own Codex daemon. If Windows retains a file lock, the synthetic
+temporary profile is kept and its path is printed for later cleanup. It never
+copies regular authentication files or restores native permission settings.
 
-1. Record `claude --version`, `codex --version` and `node --version` for each
-   machine. Record an application-bundled binary separately if it differs.
-2. Run the unit/build checks and native probe against each Codex version to
-   be claimed. A failing or unknown native schema remains unverified.
-3. Check plugin installation and source path with the exact Claude version.
-   Record an interactive resume/model-response check separately when performed.
-4. Update this table with exact versions, date, platform and evidence. Preserve
-   old evidence as historical entries rather than extending a version range.
-5. Commit the fork change and update the parent submodule pointer. Native probe
-   failures require investigation before that client version is claimed.
+## Update procedure
 
-## Known boundaries
+1. Bump the fork version in package, lockfile, plugin and marketplace metadata,
+   plus `currentForkVersion` in compatibility.json.
+2. Run regression/build checks, then probe each exact Claude/Codex pair with
+   `--record`. Old tuples stay as historical evidence.
+3. Review changed preservation boundaries. Run `check:compatibility`, commit the
+   fork and update the parent repository's pinned submodule commit.
 
-- The reader handles both legacy `event_msg/user_message` and modern
-  `response_item/message` user records. This is a format claim covered by
-  fixtures, not evidence that every client release has been exercised.
-- `migrate-rollouts` and the app-server fields used by the probe are
-  version-sensitive. Native history readability does not prove that provider
-  permissions, reasoning records or a subsequent model turn will succeed.
-- Default context injection truncates strings. No tested version makes that
-  mode lossless, and existing code/working-tree changes are not transferred.
+The source fingerprint normalizes CRLF/LF so it is stable across both machines.
+Do not infer an untested version interval from two successful version endpoints.

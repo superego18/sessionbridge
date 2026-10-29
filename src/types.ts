@@ -96,7 +96,12 @@ export interface ParsedTurn {
   assistantMessages: string[];
   toolCalls: ParsedToolCall[];
   reasoningCount: number;
+  events?: ParsedHistoryEvent[];
 }
+
+export type ParsedHistoryEvent =
+  | { type: "assistant"; text: string }
+  | { type: "tool_call" | "tool_result"; callIndex: number };
 
 export interface ParsedToolCall {
   toolName: string;
@@ -122,6 +127,7 @@ export interface ParsedSession {
 // --- Claude Code JSONL 记录类型 (用于 --new-session 模式) ---
 
 export interface ClaudeUserRecord {
+  gitBranch?: string;
   parentUuid: string | null;
   isSidechain: boolean;
   type: "user";
@@ -145,6 +151,7 @@ export interface ClaudeUserRecord {
 }
 
 export interface ClaudeAssistantRecord {
+  gitBranch?: string;
   parentUuid: string | null;
   isSidechain: boolean;
   type: "assistant";
