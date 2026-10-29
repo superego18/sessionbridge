@@ -6,6 +6,7 @@ import fs from "fs";
 import readline from "readline";
 import type {
   CodexRecord,
+  CodexSessionMeta,
   CodexResponseItem,
   CodexEventMsg,
   CodexTurnContext,
@@ -31,6 +32,8 @@ export async function parseCodexSession(
   };
 
   let currentTurn: ParsedTurn | null = null;
+  let pendingUserSource: "event" | "response" | null = null;
+  let pendingUserText = "";
   let pendingToolCallMap = new Map<string, ParsedToolCall>();
   const fileSet = new Set<string>();
 
@@ -51,12 +54,13 @@ export async function parseCodexSession(
 
     switch (record.type) {
       case "session_meta": {
-        session.sessionId = record.payload.id;
-        session.cwd = record.payload.cwd;
+        const meta = record as CodexSessionMeta;
+        session.sessionId = meta.payload.id;
+        session.cwd = meta.payload.cwd;
         session.startTime = record.timestamp;
-        if (record.payload.git) {
-          session.gitBranch = record.payload.git.branch;
-          session.gitCommitHash = record.payload.git.commit_hash;
+        if (meta.payload.git) {
+          session.gitBranch = meta.payload.git.branch;
+          session.gitCommitHash = meta.payload.git.commit_hash;
         }
         break;
       }
@@ -74,6 +78,13 @@ export async function parseCodexSession(
         const pType = em.payload.type;
 
         if (pType === "user_message") {
+          const text = (em.payload.message || "").trim();
+          if (pendingUserSource === "response" && pendingUserText === text) {
+            pendingUserSource = null;
+            break;
+          }
+          pendingUserSource = "event";
+          pendingUserText = text;
           // 新 turn 开始
           if (currentTurn) {
             flushTurn(currentTurn, session, pendingToolCallMap);
@@ -87,12 +98,49 @@ export async function parseCodexSession(
             reasoningCount: 0,
           };
           session.endTime = em.timestamp;
+        } else if (pType === "agent_message" || pType === "task_complete" || pType === "task_completed") {
+          pendingUserSource = null;
         }
         break;
       }
 
       case "response_item": {
         const ri = record as CodexResponseItem;
+
+        // Codex >= 0.15x no longer emits event_msg/user_message. The user turn
+        // arrives as a response_item message with role "user" instead.
+        if (ri.payload.type === "message" && ri.payload.role === "user") {
+          const userText = (ri.payload.content || [])
+            .filter((b) => b.text)
+            .map((b) => b.text)
+            .join("\n")
+            .trim();
+          if (!userText || userText.startsWith("<environment_context>")) {
+            break;
+          }
+          // Legacy sessions have UI/API copies in either order. Pair only
+          // opposite representations before any assistant/tool activity.
+          const duplicateLegacy: boolean = pendingUserSource === "event" && pendingUserText === userText;
+          pendingUserSource = duplicateLegacy ? null : "response";
+          pendingUserText = userText;
+          if (!duplicateLegacy || !currentTurn) {
+            if (currentTurn) {
+              flushTurn(currentTurn, session, pendingToolCallMap);
+            }
+            currentTurn = {
+              index: session.turns.length,
+              userMessage: userText,
+              timestamp: ri.timestamp,
+              assistantMessages: [],
+              toolCalls: [],
+              reasoningCount: 0,
+            };
+            session.endTime = ri.timestamp;
+          }
+          break;
+        }
+
+        pendingUserSource = null;
         if (!currentTurn) break;
 
         switch (ri.payload.type) {

@@ -4,6 +4,8 @@
 
 <h1 align="center">sessionbridge</h1>
 
+> Maintained fork: compatibility fixes and synthetic regression tests are documented in [FORK.md](FORK.md).
+
 <p align="center">
   <strong>OpenAI Codex CLI ↔ Claude Code 双向会话迁移</strong>
 </p>

@@ -61,6 +61,10 @@ export async function parseClaudeSession(
     if (r.gitBranch && !session.gitBranch) {
       session.gitBranch = r.gitBranch as string;
     }
+    // The session name. One record is appended per rename, so the last wins.
+    if (r.type === "custom-title" && r.customTitle) {
+      session.title = r.customTitle as string;
+    }
     if (r.timestamp) {
       if (!session.startTime || r.timestamp < session.startTime) {
         session.startTime = r.timestamp as string;

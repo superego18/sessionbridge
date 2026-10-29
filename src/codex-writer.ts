@@ -10,6 +10,33 @@ import Database from "better-sqlite3";
 import type { ParsedSession, ParsedTurn, ParsedToolCall } from "./types.js";
 import { TOOL_NAME_MAP_REVERSE } from "./types.js";
 
+// The source session's model is a Claude model name. Writing it into a Codex
+// thread makes the turn fail outright:
+//   "The 'claude-opus-5' model is not supported when using Codex with a
+//    ChatGPT account."
+// Use the model the target Codex home is configured with instead.
+let cachedCodexModel: string | null | undefined;
+function codexConfiguredModel(): string | null {
+  if (cachedCodexModel !== undefined) return cachedCodexModel;
+  cachedCodexModel = null;
+  try {
+    const home =
+      process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+    const toml = fs.readFileSync(path.join(home, "config.toml"), "utf8");
+    for (const line of toml.split(/\r?\n/)) {
+      if (/^\s*\[/.test(line)) break; // past the top-level table
+      const m = line.match(/^\s*model\s*=\s*"([^"]+)"/);
+      if (m) { cachedCodexModel = m[1]; break; }
+    }
+  } catch { /* fall back to null -> Codex uses its own default */ }
+  return cachedCodexModel;
+}
+
+// Carry the Claude session name over, marked so imported threads stand out.
+function codexThreadName(session: ParsedSession): string | null {
+  return session.title ? session.title + "(cl->cx)" : null;
+}
+
 function uuidV7(): string {
   // 简易 UUID v7: 时间戳前48bit + 随机后80bit
   const now = Date.now();
@@ -64,7 +91,9 @@ export function writeCodexSession(
       originator: "codex2claude_import",
       cli_version: "0.80.0",
       source: "cli",
-      model_provider: "imported",
+      // Must name a provider that exists in config.toml. "imported" makes
+      // `codex resume` fail with "Model provider `imported` not found".
+      model_provider: "openai",
       git: session.gitBranch
         ? {
             commit_hash: session.gitCommitHash || "",
@@ -95,6 +124,19 @@ export function writeCodexSession(
   };
   fs.appendFileSync(indexPath, JSON.stringify(indexEntry) + "\n");
 
+  // Codex keeps thread names in this same file, in its own record shape.
+  const threadName = codexThreadName(session);
+  if (threadName) {
+    fs.appendFileSync(
+      indexPath,
+      JSON.stringify({
+        id: codexSessionId,
+        thread_name: threadName,
+        updated_at: now.toISOString(),
+      }) + "\n"
+    );
+  }
+
   return { sessionId: codexSessionId, filePath };
 }
 
@@ -117,7 +159,7 @@ function writeTurn(
         type: "workspace-write",
         network_access: false,
       },
-      model: session.model || "unknown",
+      model: codexConfiguredModel() || "gpt-5.1-codex",
       summary: "auto",
     },
   };
@@ -272,7 +314,8 @@ function registerInSQLite(
 
   try {
     const db = new Database(dbPath);
-    const now = Date.now();
+    // created_at/updated_at are stored in SECONDS by Codex, not milliseconds.
+    const now = Math.floor(Date.now() / 1000);
 
     db.prepare(
       `INSERT OR REPLACE INTO threads
@@ -286,8 +329,12 @@ function registerInSQLite(
       now,
       now,
       "cli",
-      "imported",
-      session.cwd,
+      "openai",
+      // Codex stores cwd in Windows extended-length form; the picker's cwd
+      // filter compares against that, so a plain path never matches.
+      process.platform === "win32" && /^[A-Za-z]:\\/.test(session.cwd)
+        ? "\\\\?\\" + session.cwd
+        : session.cwd,
       truncate(session.turns[0]?.userMessage || "Imported from Claude Code", 200),
       "workspace-write",
       "on-request",
@@ -296,8 +343,20 @@ function registerInSQLite(
       0,
       session.gitBranch || "",
       "0.80.0",
-      session.model || "unknown"
+      codexConfiguredModel() || "gpt-5.1-codex"
     );
+
+    // Separate statement: older Codex schemas have no `name` column, and a
+    // failure here must not undo the registration above.
+    const threadName = codexThreadName(session);
+    if (threadName) {
+      try {
+        db.prepare(`UPDATE threads SET name = ? WHERE id = ?`).run(
+          threadName,
+          sessionId
+        );
+      } catch { /* no name column */ }
+    }
 
     db.close();
   } catch {

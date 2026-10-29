@@ -109,6 +109,7 @@ export interface ParsedSession {
   sessionId: string;
   cwd: string;
   model: string;
+  title?: string;
   gitBranch?: string;
   gitCommitHash?: string;
   startTime: string;

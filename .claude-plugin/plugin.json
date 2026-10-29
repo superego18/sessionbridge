@@ -1,10 +1,21 @@
 {
   "name": "sessionbridge",
   "description": "Bidirectional session migration between OpenAI Codex CLI and Claude Code",
-  "version": "1.4.0",
-  "author": { "name": "songyuntong1" },
+  "version": "1.4.1",
+  "author": {
+    "name": "songyuntong1"
+  },
   "license": "MIT",
-  "keywords": ["codex", "claude-code", "session", "migration"],
-  "commands": ["./commands"],
-  "skills": ["./skills/import-session"]
+  "keywords": [
+    "codex",
+    "claude-code",
+    "session",
+    "migration"
+  ],
+  "commands": [
+    "./commands"
+  ],
+  "skills": [
+    "./skills/import-session"
+  ]
 }

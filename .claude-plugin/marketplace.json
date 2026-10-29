@@ -1,19 +1,18 @@
 {
-  "name": "sessionbridge",
-  "id": "sessionbridge",
+  "name": "sessionbridge-chanju",
   "owner": {
-    "name": "tongtongtju"
+    "name": "superego18"
   },
   "metadata": {
     "description": "Bidirectional session migration between OpenAI Codex CLI and Claude Code",
-    "version": "1.4.0"
+    "version": "1.4.1"
   },
   "plugins": [
     {
       "name": "sessionbridge",
       "source": "./",
       "description": "Bidirectional session migration between OpenAI Codex CLI and Claude Code. Preserve conversations, tool calls, and file changes.",
-      "version": "1.4.0",
+      "version": "1.4.1",
       "author": {
         "name": "tongtongtju"
       },
@@ -25,8 +24,12 @@
         "plugin"
       ],
       "category": "workflow",
-      "commands": ["./commands"],
-      "skills": ["./skills/import-session"]
+      "commands": [
+        "./commands"
+      ],
+      "skills": [
+        "./skills/import-session"
+      ]
     }
   ]
 }
