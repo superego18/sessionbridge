@@ -52,7 +52,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const verified = data.verifications.filter(item => item.forkVersion === pkg.version && item.sourceSha256 === sourceSha256
     && item.claudeVersion && item.codexVersion && item.checks.claudePluginInstall && item.checks.codexMigration
     && item.checks.codexList && item.checks.codexRead && item.checks.codexTitle
-    && item.checks.modelResponse === false && item.checks.claudeConversationResume === false);
+    && item.checks.modelResponse === false && (item.checks.claudeConversationResume === false
+      || item.checks.claudeProvider === 'loopback-fixture'));
   if (!verified.length) throw new Error('No verified fork + Claude + Codex combination for this source. Run test:native with --record.');
   console.log(JSON.stringify({ forkVersion: pkg.version, verifiedCombinations: verified.length, sourceSha256 }));
 }

@@ -44,7 +44,7 @@
       "codexVersion": "0.163.0",
       "platform": "win32-x64",
       "nodeVersion": "v24.19.0",
-      "checkedAt": "2026-10-29T13:42:57.925Z",
+      "checkedAt": "2026-10-29T13:51:03.548Z",
       "sourceSha256": "a66477bb6fdb3eab6898aa358b9ead3d14cd1ed48e6533b774ee2de24851258a",
       "checks": {
         "claudePluginInstall": true,
@@ -54,7 +54,8 @@
         "codexTitle": true,
         "longTextAndToolOutput": true,
         "modelResponse": false,
-        "claudeConversationResume": false
+        "claudeConversationResume": true,
+        "claudeProvider": "loopback-fixture"
       }
     },
     {
@@ -63,7 +64,7 @@
       "codexVersion": "0.165.0",
       "platform": "win32-x64",
       "nodeVersion": "v24.19.0",
-      "checkedAt": "2026-10-29T13:43:13.109Z",
+      "checkedAt": "2026-10-29T13:51:27.101Z",
       "sourceSha256": "a66477bb6fdb3eab6898aa358b9ead3d14cd1ed48e6533b774ee2de24851258a",
       "checks": {
         "claudePluginInstall": true,
@@ -73,7 +74,8 @@
         "codexTitle": true,
         "longTextAndToolOutput": true,
         "modelResponse": false,
-        "claudeConversationResume": false
+        "claudeConversationResume": true,
+        "claudeProvider": "loopback-fixture"
       }
     }
   ]

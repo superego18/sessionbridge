@@ -72,13 +72,14 @@ try {
     console.error(JSON.stringify({ preserved, diagnostic: path.join(home, 'native-read-diagnostic.json') }));
   }
   assert.ok(Object.values(preserved).every(Boolean), 'native history must retain complete messages and tool output');
+  const claudeResume = JSON.parse(execFileSync(process.execPath, ['test/claude-native-probe.mjs', claudeBinary], { env, encoding: 'utf8' }));
   const forkVersion = JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
   const entry = { forkVersion, claudeVersion: claudeVersion.split(' ')[0], codexVersion: version.replace('codex-cli ', ''),
     platform: `${process.platform}-${process.arch}`, nodeVersion: process.version,
     checkedAt: new Date().toISOString(), sourceSha256: sourceFingerprint(process.cwd()),
     checks: { claudePluginInstall: true, codexMigration: true, codexList: true,
       codexRead: true, codexTitle: true, longTextAndToolOutput: true,
-      modelResponse: false, claudeConversationResume: false },
+      modelResponse: false, ...claudeResume },
   };
   assert.equal(installed.folderVersion || installed.version, forkVersion);
   if (process.argv.includes('--record')) recordVerification(process.cwd(), entry);

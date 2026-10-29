@@ -23,8 +23,9 @@ The fork marketplace is named **sessionbridge-chanju**; the plugin name and
   invalidate old evidence until the isolated native probe is repeated.
 
 Sixteen synthetic regression tests run on Windows and macOS CI. Native Windows
-checks are listed in [COMPATIBILITY.md](COMPATIBILITY.md); they do not include a
-model request or converted Claude conversation cold resume.
+checks are listed in [COMPATIBILITY.md](COMPATIBILITY.md). Claude cold resume is
+checked with a loopback fixture provider and simulated response. Real model
+responses are not verified.
 
 ## 1.4.1
 

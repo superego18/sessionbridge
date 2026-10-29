@@ -16,11 +16,14 @@ A newer client is unverified; these are exact combinations, not a support range.
 
 ## What these checks establish
 
-- Claude Code: isolated local marketplace installation, manifest validation and
-  the installed fork version. **Converted conversation cold resume is unverified.**
+- Claude Code: isolated local marketplace installation and manifest validation.
+  Current 1.4.2 tuples also cold-resume a converted conversation against a local
+  fixture provider, inspect the full message/tool history in the native request,
+  verify a Claude model is selected, and receive a simulated streaming response.
+  Historical 1.4.1 tuples only checked installation; see each JSON entry's checks.
 - Codex: synthetic export, native migration, thread list, native history read and
   title retention. Version 1.4.2 probes also check long text and tool output.
-- **No model request is sent. A first model response and source permissions,
+- **No external model request is sent. A real model response and source permissions,
   encrypted reasoning, images, external files and separate sessions are not
   claimed to be portable.** Source JSONL archives preserve their original bytes.
 - Windows/macOS CI checks dependency installation, conversion fixtures and build.
@@ -37,6 +40,9 @@ npm run check:compatibility
 ```
 
 The probe creates isolated Codex and Claude homes and uses synthetic records only.
+Claude's resume probe uses a dummy API key, removes inherited OAuth/auth tokens,
+disables nonessential traffic and points the provider to 127.0.0.1. No recorded
+conversation or real authentication file is copied into either probe home.
 It records a tuple only after all native checks pass, then regenerates the table
 above. `check:compatibility` rejects mismatched package/plugin/marketplace versions
 and source changes without a matching verified tuple. It does not block ordinary
