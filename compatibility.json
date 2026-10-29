@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "currentForkVersion": "1.4.2",
+  "currentForkVersion": "1.4.3",
   "verifications": [
     {
       "forkVersion": "1.4.1",
@@ -73,6 +73,48 @@
         "codexRead": true,
         "codexTitle": true,
         "longTextAndToolOutput": true,
+        "modelResponse": false,
+        "claudeConversationResume": true,
+        "claudeProvider": "loopback-fixture"
+      }
+    },
+    {
+      "forkVersion": "1.4.3",
+      "claudeVersion": "2.1.312",
+      "codexVersion": "0.163.0",
+      "platform": "win32-x64",
+      "nodeVersion": "v24.19.0",
+      "checkedAt": "2026-10-29T14:35:47.945Z",
+      "sourceSha256": "ad932633d824ed5ac60de0c8c8b790bb00002597fb27e51f11e54eebdc78a955",
+      "checks": {
+        "claudePluginInstall": true,
+        "codexMigration": true,
+        "codexList": true,
+        "codexRead": true,
+        "codexTitle": true,
+        "longTextAndToolOutput": true,
+        "unfinishedToolsAsHistory": true,
+        "modelResponse": false,
+        "claudeConversationResume": true,
+        "claudeProvider": "loopback-fixture"
+      }
+    },
+    {
+      "forkVersion": "1.4.3",
+      "claudeVersion": "2.1.312",
+      "codexVersion": "0.165.0",
+      "platform": "win32-x64",
+      "nodeVersion": "v24.19.0",
+      "checkedAt": "2026-10-29T14:36:37.558Z",
+      "sourceSha256": "ad932633d824ed5ac60de0c8c8b790bb00002597fb27e51f11e54eebdc78a955",
+      "checks": {
+        "claudePluginInstall": true,
+        "codexMigration": true,
+        "codexList": true,
+        "codexRead": true,
+        "codexTitle": true,
+        "longTextAndToolOutput": true,
+        "unfinishedToolsAsHistory": true,
         "modelResponse": false,
         "claudeConversationResume": true,
         "claudeProvider": "loopback-fixture"

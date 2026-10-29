@@ -10,19 +10,23 @@ A newer client is unverified; these are exact combinations, not a support range.
 | --- | --- | --- | --- | --- | --- |
 | 1.4.1 | 2.1.312 | 0.163.0 | win32-x64 | 2026-10-29 | historical |
 | 1.4.1 | 2.1.312 | 0.165.0 | win32-x64 | 2026-10-29 | historical |
-| 1.4.2 | 2.1.312 | 0.163.0 | win32-x64 | 2026-10-29 | verified |
-| 1.4.2 | 2.1.312 | 0.165.0 | win32-x64 | 2026-10-29 | verified |
+| 1.4.2 | 2.1.312 | 0.163.0 | win32-x64 | 2026-10-29 | historical |
+| 1.4.2 | 2.1.312 | 0.165.0 | win32-x64 | 2026-10-29 | historical |
+| 1.4.3 | 2.1.312 | 0.163.0 | win32-x64 | 2026-10-29 | verified |
+| 1.4.3 | 2.1.312 | 0.165.0 | win32-x64 | 2026-10-29 | verified |
 <!-- version-combinations:end -->
 
 ## What these checks establish
 
 - Claude Code: isolated local marketplace installation and manifest validation.
-  Current 1.4.2 tuples also cold-resume a converted conversation against a local
+  Version 1.4.2 and later tuples also cold-resume a converted conversation against a local
   fixture provider, inspect the full message/tool history in the native request,
   verify a Claude model is selected, and receive a simulated streaming response.
   Historical 1.4.1 tuples only checked installation; see each JSON entry's checks.
 - Codex: synthetic export, native migration, thread list, native history read and
-  title retention. Version 1.4.2 probes also check long text and tool output.
+  title retention. Version 1.4.2 and later probes also check long text and tool output.
+- Version 1.4.3 probes verify that unfinished source calls remain labelled
+  history with an unknown outcome, without an orphan native tool call.
 - **No external model request is sent. A real model response and source permissions,
   encrypted reasoning, images, external files and separate sessions are not
   claimed to be portable.** Source JSONL archives preserve their original bytes.

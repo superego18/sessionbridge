@@ -4,7 +4,7 @@ import os from "os";
 import crypto from "crypto";
 import type { ParsedSession, ClaudeRecord, ClaudeContentBlock } from "./types.js";
 import { TOOL_NAME_MAP } from "./types.js";
-import { historyEvents } from "./history.js";
+import { historyEvents, unfinishedToolNote } from "./history.js";
 
 export function writeClaudeSession(session: ParsedSession): { sessionId: string; filePath: string } {
   const sessionId = crypto.randomUUID();
@@ -34,11 +34,15 @@ export function writeClaudeSession(session: ParsedSession): { sessionId: string;
         block = { type: "text", text: event.text };
       } else {
         const call = turn.toolCalls[event.callIndex];
-        let input: Record<string, unknown>;
-        try { input = JSON.parse(call.arguments); } catch { input = { raw: call.arguments }; }
-        if (call.toolName === "exec_command") input = { ...input, command: input.cmd || input.command || "" };
-        block = { type: "tool_use", id: ids[event.callIndex],
-          name: TOOL_NAME_MAP[call.toolName] || call.toolName, input };
+        if (call.output === undefined) {
+          block = { type: "text", text: unfinishedToolNote(call) };
+        } else {
+          let input: Record<string, unknown>;
+          try { input = JSON.parse(call.arguments); } catch { input = { raw: call.arguments }; }
+          if (call.toolName === "exec_command") input = { ...input, command: input.cmd || input.command || "" };
+          block = { type: "tool_use", id: ids[event.callIndex],
+            name: TOOL_NAME_MAP[call.toolName] || call.toolName, input };
+        }
       }
       append({ ...base(), type: "assistant", message: { id: `msg_${crypto.randomUUID()}`,
         type: "message", role: "assistant", model: session.model, content: [block],

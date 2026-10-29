@@ -33,7 +33,8 @@ try {
     model: 'source-claude-model', startTime: ts, endTime: ts, filesChanged: [],
     turns: [{ index: 0, timestamp: ts, userMessage: longUser,
       assistantMessages: [longAnswer], toolCalls: [{ toolName: 'Bash', timestamp: ts,
-        arguments: JSON.stringify({ command: 'echo synthetic' }), output: longOutput }], reasoningCount: 0 }],
+        arguments: JSON.stringify({ command: 'echo synthetic' }), output: longOutput },
+        { toolName: 'Bash', timestamp: ts, arguments: '{"command":"SOURCE-UNCERTAIN"}' }], reasoningCount: 0 }],
   };
   const exported = JSON.parse(execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e',
     "import { writeCodexSession } from './src/codex-writer.ts'; console.log(JSON.stringify(writeCodexSession(JSON.parse(process.argv[1]))));",
@@ -41,6 +42,8 @@ try {
   const migration = JSON.parse(execFileSync(binary, ['migrate-rollouts', '--apply', '--thread', exported.sessionId, '--json'],
     { env, encoding: 'utf8', stdio: 'pipe' }));
   assert.equal(migration.outcomes.find(item => item.thread_id === exported.sessionId)?.status, 'migrated');
+  const raw = fs.readFileSync(exported.filePath, 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(raw.filter(row => row.type === 'response_item' && row.payload.type === 'function_call').length, 1);
   server = spawn(binary, ['app-server'], { env, stdio: ['pipe', 'pipe', 'pipe'] });
   server.stderr.resume();
   const pending = new Map();
@@ -72,13 +75,14 @@ try {
     console.error(JSON.stringify({ preserved, diagnostic: path.join(home, 'native-read-diagnostic.json') }));
   }
   assert.ok(Object.values(preserved).every(Boolean), 'native history must retain complete messages and tool output');
+  assert.ok(text.includes('SOURCE-UNCERTAIN') && text.includes('outcome unknown'));
   const claudeResume = JSON.parse(execFileSync(process.execPath, ['test/claude-native-probe.mjs', claudeBinary], { env, encoding: 'utf8' }));
   const forkVersion = JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
   const entry = { forkVersion, claudeVersion: claudeVersion.split(' ')[0], codexVersion: version.replace('codex-cli ', ''),
     platform: `${process.platform}-${process.arch}`, nodeVersion: process.version,
     checkedAt: new Date().toISOString(), sourceSha256: sourceFingerprint(process.cwd()),
     checks: { claudePluginInstall: true, codexMigration: true, codexList: true,
-      codexRead: true, codexTitle: true, longTextAndToolOutput: true,
+      codexRead: true, codexTitle: true, longTextAndToolOutput: true, unfinishedToolsAsHistory: true,
       modelResponse: false, ...claudeResume },
   };
   assert.equal(installed.folderVersion || installed.version, forkVersion);

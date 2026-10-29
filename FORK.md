@@ -5,12 +5,29 @@ This fork starts at `tongtongtju/sessionbridge` commit
 The fork marketplace is named **sessionbridge-chanju**; the plugin name and
 `/sessionbridge:import-session` command stay unchanged.
 
+## 1.4.3
+
+- Quote historical messages and tool output with collision-safe fences, retain
+  full text, and ask the receiving agent to verify the current working tree.
+- Project unfinished tool calls as labelled historical text with an unknown
+  outcome, never as orphan native calls or evidence that an action did not run.
+- Accept `--target-cwd <absolute-existing-directory>` in either direction for
+  moved projects. Preserve original paths in the archive and projection.
+- Save projections under content-addressed `context-<sha256>.md` names so a
+  later migration cannot overwrite a prior destination's context.
+- These boundaries were informed by Orca 1.4.244's fresh-session handoff;
+  this fork keeps full source snapshots rather than adopting bounded capture.
+  Reference: [Orca continuation source](https://github.com/stablyai/orca/blob/b8ec5c8d170bcb9988e65de547a3a4e98b2885a9/src/renderer/src/lib/agent-session-continuation.ts).
+
+Twenty-two regression tests cover conversion and handoff boundaries. Native
+probes also verify that unfinished calls remain history on both clients.
+
 ## 1.4.2
 
 - Archive the exact source JSONL bytes before parsing. SHA-256 verifies the
   snapshot used for conversion, including unsupported records. The snapshot is
   not a backup of external files, separate subagent sessions or native databases.
-- Save the full projected history as `context.md` alongside the snapshot and
+- Save the full projected history alongside the snapshot and
   print its path. Message bodies, tool arguments and outputs are no longer cut
   to arbitrary character limits. The receiving tool/model may still limit input.
 - Preserve assistant/tool/result ordering, parallel tool-result pairing,

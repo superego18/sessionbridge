@@ -149,7 +149,9 @@ for (const direction of ['cl2cx', 'cx2cl']) {
     const manifest = JSON.parse(fs.readFileSync(path.join(entry, 'manifest.json'), 'utf8'));
     assert.equal(manifest.sha256, crypto.createHash('sha256').update(bytes).digest('hex'));
     assert.ok(output.includes(entry));
-    assert.ok(fs.readFileSync(path.join(entry, 'context.md'), 'utf8').includes('hello'));
+    const projection = fs.readdirSync(entry).find(name => /^context-[a-f0-9]+\.md$/.test(name));
+    assert.ok(projection);
+    assert.ok(fs.readFileSync(path.join(entry, projection), 'utf8').includes('hello'));
     assert.deepEqual(fs.readFileSync(source), bytes, 'source must remain unchanged');
   });
 }

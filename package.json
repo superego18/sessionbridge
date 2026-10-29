@@ -1,6 +1,6 @@
 {
   "name": "sessionbridge",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Bidirectional session migration between OpenAI Codex CLI and Claude Code",
   "type": "module",
   "scripts": {

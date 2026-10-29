@@ -1,4 +1,9 @@
-import type { ParsedHistoryEvent, ParsedTurn } from "./types.js";
+import type { ParsedHistoryEvent, ParsedTurn, ParsedToolCall } from "./types.js";
+
+export function unfinishedToolNote(call: ParsedToolCall): string {
+  return `[Unfinished source tool call: ${call.toolName}; outcome unknown]\n${call.arguments}\n`
+    + "No result was captured. The action may have run; do not automatically retry. Check the current working tree first.";
+}
 
 export function historyEvents(turn: ParsedTurn): ParsedHistoryEvent[] {
   if (turn.events) return turn.events;

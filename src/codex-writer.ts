@@ -9,7 +9,7 @@ import crypto from "crypto";
 import Database from "better-sqlite3";
 import type { ParsedSession, ParsedTurn, ParsedToolCall } from "./types.js";
 import { TOOL_NAME_MAP_REVERSE } from "./types.js";
-import { historyEvents } from "./history.js";
+import { historyEvents, unfinishedToolNote } from "./history.js";
 
 // The source session's model is a Claude model name. Writing it into a Codex
 // thread makes the turn fail outright:
@@ -215,6 +215,14 @@ function writeTurn(
       continue;
     }
     const call = turn.toolCalls[event.callIndex];
+    if (event.type === "tool_call" && call.output === undefined) {
+      const text = unfinishedToolNote(call);
+      visibleHistory(text);
+      ws.write(JSON.stringify({ timestamp: ts, type: "response_item", payload: {
+        type: "message", role: "assistant", content: [{ type: "output_text", text }],
+      } }) + "\n");
+      continue;
+    }
     if (event.type === "tool_result") {
       if (call.output !== undefined) visibleHistory(`[Source tool result: ${call.toolName}]\n${call.output}`);
       if (call.output !== undefined) ws.write(JSON.stringify({ timestamp: ts, type: "response_item", payload: {

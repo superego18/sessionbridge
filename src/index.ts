@@ -17,17 +17,35 @@ import path from "path";
 import os from "os";
 import { archiveSource } from "./source-archive.js";
 import fs from "fs";
+import crypto from "crypto";
 import type { ParsedSession } from "./types.js";
 
-function saveProjection(directory: string, session: ParsedSession): string {
-  const content = buildContextSummary(session);
-  const filePath = path.join(directory, "context.md");
-  fs.writeFileSync(filePath, content, { mode: 0o600 });
+function saveProjection(directory: string, session: ParsedSession, targetCwd: string): string {
+  const content = buildContextSummary(session, targetCwd);
+  const hash = crypto.createHash("sha256").update(content).digest("hex");
+  const filePath = path.join(directory, `context-${hash}.md`);
+  if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, content, { mode: 0o600, flag: "wx" });
   console.log(`Full projected history: ${filePath}. If tool output is truncated, read this file in chunks.`);
   return content;
 }
 
 const args = process.argv.slice(2);
+
+function targetDirectory(restArgs: string[]): string | undefined {
+  const index = restArgs.indexOf("--target-cwd");
+  if (index === -1) return undefined;
+  const directory = restArgs[index + 1];
+  if (!directory || !path.isAbsolute(directory) || !fs.statSync(directory).isDirectory()) {
+    throw new Error("--target-cwd requires an existing absolute directory.");
+  }
+  return fs.realpathSync(directory);
+}
+
+function changeDirectoryCommand(directory: string): string {
+  return process.platform === "win32"
+    ? `Set-Location -LiteralPath '${directory.replace(/'/g, "''")}'`
+    : `cd -- '${directory.replace(/'/g, "'\\''")}'`;
+}
 
 async function main() {
   if (args.length === 0) {
@@ -74,6 +92,7 @@ async function handleCodex2Claude(restArgs: string[]) {
 
   const sessionId = restArgs[0];
   const newSessionMode = restArgs.includes("--new-session");
+  const targetOverride = targetDirectory(restArgs);
 
   const session = findSessionById(sessionId);
   if (!session) {
@@ -100,17 +119,18 @@ async function handleCodex2Claude(restArgs: string[]) {
     process.exit(1);
   }
 
-  const summary = saveProjection(archive.directory, parsed);
+  const targetCwd = targetOverride ?? parsed.cwd;
+  const summary = saveProjection(archive.directory, parsed, targetCwd);
   if (newSessionMode) {
-    const result = writeClaudeSession(parsed);
+    const result = writeClaudeSession({ ...parsed, cwd: targetCwd });
     console.log("=== New Claude Session Created ===");
     console.log(`Session ID: ${result.sessionId}`);
     console.log(`File: ${result.filePath}`);
-    console.log(`Project: ${parsed.cwd}`);
+    console.log(`Project: ${targetCwd}`);
     console.log(`Turns: ${parsed.turns.length}`);
     console.log("");
     console.log("To continue, run:");
-    console.log(`  cd ${parsed.cwd}`);
+    console.log(`  ${changeDirectoryCommand(targetCwd)}`);
     console.log(`  claude -r ${result.sessionId}`);
   } else {
     console.log(summary);
@@ -129,6 +149,7 @@ async function handleClaude2Codex(restArgs: string[]) {
 
   const sessionId = restArgs[0];
   const injectMode = restArgs.includes("--inject");
+  const targetOverride = targetDirectory(restArgs);
 
   const found = findClaudeSessionById(sessionId);
   if (!found) {
@@ -148,21 +169,22 @@ async function handleClaude2Codex(restArgs: string[]) {
     process.exit(1);
   }
 
-  const summary = saveProjection(archive.directory, parsed);
+  const targetCwd = targetOverride ?? parsed.cwd;
+  const summary = saveProjection(archive.directory, parsed, targetCwd);
   if (injectMode) {
     // 注入模式：输出 Markdown 摘要
     console.log(summary);
   } else {
     // 默认：生成新的 Codex 会话
-    const result = writeCodexSession(parsed);
+    const result = writeCodexSession({ ...parsed, cwd: targetCwd });
     console.log("=== New Codex Session Created ===");
     console.log(`Session ID: ${result.sessionId}`);
     console.log(`File: ${result.filePath}`);
-    console.log(`Project: ${parsed.cwd}`);
+    console.log(`Project: ${targetCwd}`);
     console.log(`Turns: ${parsed.turns.length}`);
     console.log("");
     console.log("To continue, run:");
-    console.log(`  cd ${parsed.cwd}`);
+    console.log(`  ${changeDirectoryCommand(targetCwd)}`);
     console.log(`  codex resume ${result.sessionId}`);
   }
 }
@@ -213,6 +235,7 @@ function printUsage() {
   console.log("sessionbridge - Bidirectional session migration between Codex and Claude Code");
   console.log("");
   console.log("Usage:");
+  console.log("  Both directions accept --target-cwd <absolute-existing-directory> for a moved project.");
   console.log("  # Codex → Claude (default: inject | --new-session: create file)");
   console.log("  npx tsx src/index.ts cx2cl <codex-session-id> [--new-session]");
   console.log("  npx tsx src/index.ts cx2cl --list");

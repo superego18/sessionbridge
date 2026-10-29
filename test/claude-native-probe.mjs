@@ -18,7 +18,8 @@ const answer = 'CLAUDE-RESTORE-ANSWER-' + 'A'.repeat(3000);
 const output = 'CLAUDE-RESTORE-TOOL-' + 'T'.repeat(4000);
 const session = { sessionId: 'fixture', cwd: process.cwd(), model: 'gpt-source-fixture', startTime: ts, endTime: ts, filesChanged: [],
   turns: [{ index: 0, timestamp: ts, userMessage: user, assistantMessages: [answer], reasoningCount: 0,
-    toolCalls: [{ toolName: 'exec_command', timestamp: ts, arguments: '{"cmd":"echo synthetic"}', output }] }] };
+    toolCalls: [{ toolName: 'exec_command', timestamp: ts, arguments: '{"cmd":"echo synthetic"}', output },
+      { toolName: 'exec_command', timestamp: ts, arguments: '{"cmd":"SOURCE-UNCERTAIN"}' }] }] };
 const created = JSON.parse(execFileSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e',
   "import { writeClaudeSession } from './src/claude-writer.ts'; console.log(JSON.stringify(writeClaudeSession(JSON.parse(process.argv[1]))));",
   JSON.stringify(session)], { env, encoding: 'utf8' }));
@@ -61,7 +62,10 @@ try {
   assert.ok(result.stdout.includes('LOCAL-FIXTURE-OK'));
   assert.ok(captured.some(body => {
     const history = JSON.stringify(body.messages);
-    return String(body.model).startsWith('claude-') && history.includes(user) && history.includes(answer) && history.includes(output);
+    const pendingNativeCall = body.messages.some(message => Array.isArray(message.content)
+      && message.content.some(block => block.type === 'tool_use' && JSON.stringify(block.input).includes('SOURCE-UNCERTAIN')));
+    return String(body.model).startsWith('claude-') && history.includes(user) && history.includes(answer) && history.includes(output)
+      && history.includes('SOURCE-UNCERTAIN') && history.includes('outcome unknown') && !pendingNativeCall;
   }), 'native resumed request must retain complete history and select a Claude model');
   console.log(JSON.stringify({ claudeConversationResume: true, claudeProvider: 'loopback-fixture', modelResponse: false }));
 } finally {

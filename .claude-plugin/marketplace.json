@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Bidirectional session migration between OpenAI Codex CLI and Claude Code",
-    "version": "1.4.2"
+    "version": "1.4.3"
   },
   "plugins": [
     {
       "name": "sessionbridge",
       "source": "./",
       "description": "Bidirectional session migration between OpenAI Codex CLI and Claude Code. Preserve conversations, tool calls, and file changes.",
-      "version": "1.4.2",
+      "version": "1.4.3",
       "author": {
         "name": "tongtongtju"
       },
