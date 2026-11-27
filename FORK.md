@@ -98,3 +98,14 @@ This is a version-sensitive integration with private client storage. Synthetic
 tests verify conversion rules, not cold resume in every client release.
 See [COMPATIBILITY.md](COMPATIBILITY.md) for exact client versions, verification
 levels and the repeatable isolated native probe.
+
+## Historical research
+
+These reports describe research against the source versions named in each
+report. Proposed improvements and historical verification results are not
+claims about the current implementation. No user transcripts or credentials
+are included.
+
+- [Orca handoff comparison](docs/research/orca-session-handoff-review.md)
+- [Session migration follow-up](docs/research/session-migration-next-steps-2026-10-30.md)
+- [Claude session migration research](docs/research/session-migration-claude-research-2026-10-30.md)
